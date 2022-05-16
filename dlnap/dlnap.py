@@ -38,15 +38,9 @@ from contextlib import contextmanager
 
 
 import os
-py3 = sys.version_info[0] == 3
-if py3:
-    from urllib.request import urlopen
-    from http.server import HTTPServer
-    from http.server import BaseHTTPRequestHandler
-else:
-    from urllib2 import urlopen
-    from BaseHTTPServer import BaseHTTPRequestHandler
-    from BaseHTTPServer import HTTPServer
+from urllib.request import urlopen
+from http.server import HTTPServer
+from http.server import BaseHTTPRequestHandler
 
 import shutil
 import threading
@@ -243,11 +237,7 @@ class DownloadProxy(BaseHTTPRequestHandler):
          content_type = mimetypes.guess_type(url)[0]
       else:
          f = urlopen(url=url)
-
-         if py3:
-            content_type = f.getheader("Content-Type")
-         else:
-            content_type = f.info().getheaders("Content-Type")[0]
+         content_type = f.getheader("Content-Type")
 
       self.send_response(200, "ok")
       self.send_header('Access-Control-Allow-Origin', '*')
@@ -280,12 +270,8 @@ class DownloadProxy(BaseHTTPRequestHandler):
 
       try:
          if not content_type:
-            if py3:
-               content_type = f.getheader("Content-Type")
-               size = f.getheader("Content-Length")
-            else:
-               content_type = f.info().getheaders("Content-Type")[0]
-               size = f.info().getheaders("Content-Length")[0]
+             content_type = f.getheader("Content-Type")
+             size = f.getheader("Content-Length")
 
          self.send_response(200)
          self.send_header('Access-Control-Allow-Origin', '*')
@@ -358,8 +344,7 @@ def _send_tcp(to, payload):
       sock.sendall(payload.encode('utf-8'))
 
       data = sock.recv(2048)
-      if py3:
-         data = data.decode('utf-8')
+      data = data.decode('utf-8')
       data = _xml2dict(_unescape_xml(data), True)
 
       errorDescription = _xpath(data, 's:Envelope/s:Body/s:Fault/detail/UPnPError/errorDescription')
