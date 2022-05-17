@@ -20,11 +20,13 @@
 #   0.13 ssdp protocol version argument added
 #   0.14 fixed bug with receiving responses from device
 #   0.15 Lot's of fixes and features added thanks @ttopholm and @NicoPy
+#   0.16 migrate from getopt to argparse for argument parsing
 #
 #   1.0  moved from idea version
 
-__version__ = "0.15"
+__version__ = "0.16"
 
+import argparse
 import re
 import sys
 import time
@@ -655,141 +657,67 @@ def signal_handler(signal, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 if __name__ == '__main__':
-   import getopt
+   parser = argparse.ArgumentParser()
+   parser.add_argument("--ip", type=str,
+                       help="ip address for faster access to the known device.")
+   parser.add_argument("--device", "-d", type=str,
+		       help="discover devices with this name as substring")
+   parser.add_argument("--all", action="store_true",
+                       help="flag to discover all upnp devices, not only devices with AVTransport ability")
+   parser.add_argument("--volume", type=int, default=10,
+                       help="set current volume for playback.")
+   parser.add_argument("--seek", type=str, default='00:00:00',
+                       help="<position in HH:MM:SS> - set current position for playback.")
+   parser.add_argument("--timeout", default=None, type=float,
+                       help="discover timeout.")
+   parser.add_argument("--ssdp-version", default=1, type=int,
+                       help="discover devices by protocol version.")
+   parser.add_argument("--proxy", action="store_true",
+                       help="use local proxy on proxy port.")
+   parser.add_argument("--proxy-port", type=int, default=8000,
+                       help="proxy port to listen incomming connections from devices.")
+   parser.add_argument("--action", type=str, default='list', choices=['play', 'stop', 'pause', 'mute', 'unmute', 'list', 'info', 'media-info'],
+                       help="select the action you want to perform")
+   parser.add_argument("--url", type=str,
+                       help="To be used along with 'play' action - the url to be played")
+   parser.add_argument("--verbosity", type=str, choices=[None, 'info', 'warn', 'debug'], default=None,
+                       help="select the level of verbosity.")
+   parser.add_argument("--version", action="store_true",
+                       help="display the current version of this tool")
 
-   def usage():
-      print('{} [--ip <device ip>] [-d[evice] <name>] [--all] [-t[imeout] <seconds>] [--play <url>] [--pause] [--stop] [--proxy]'.format(__file__))
-      print(' --ip <device ip> - ip address for faster access to the known device')
-      print(' --device <device name or part of the name> - discover devices with this name as substring')
-      print(' --all - flag to discover all upnp devices, not only devices with AVTransport ability')
-      print(' --play <url> - set current url for play and start playback it. In case of url is empty - continue playing recent media.')
-      print(' --pause - pause current playback')
-      print(' --stop - stop current playback')
-      print(' --mute - mute playback')
-      print(' --unmute - unmute playback')
-      print(' --volume <vol> - set current volume for playback')
-      print(' --seek <position in HH:MM:SS> - set current position for playback')
-      print(' --timeout <seconds> - discover timeout')
-      print(' --ssdp-version <version> - discover devices by protocol version, default 1')
-      print(' --proxy - use local proxy on proxy port')
-      print(' --proxy-port <port number> - proxy port to listen incomming connections from devices, default 8000')
-      print(' --help - this help')
+   args = parser.parse_args()
 
-   def version():
-      print(__version__)
-
-   try:
-      opts, args = getopt.getopt(sys.argv[1:], "hvd:t:i:", [   # information arguments
-                                                               'help',
-                                                               'version',
-                                                               'log=',
-
-                                                               # device arguments
-                                                               'device=',
-                                                               'ip=',
-
-                                                               # action arguments
-                                                               'play=',
-                                                               'pause',
-                                                               'stop',
-                                                               'volume=',
-                                                               'mute',
-                                                               'unmute',
-                                                               'seek=',
-
-
-                                                               # discover arguments
-                                                               'list',
-                                                               'all',
-                                                               'timeout=',
-                                                               'ssdp-version=',
-
-                                                               # transport info
-                                                               'info',
-                                                               'media-info',
-
-                                                               # download proxy
-                                                               'proxy',
-                                                               'proxy-port='])
-   except getopt.GetoptError:
-      usage()
-      sys.exit(1)
-
-   device = ''
-   url = ''
-   vol = 10
-   position = '00:00:00'
-   timeout = 1
-   action = ''
-   logLevel = logging.WARN
    compatibleOnly = True
-   ip = ''
-   proxy = False
-   proxy_port = 8000
-   ssdp_version = 1
-   for opt, arg in opts:
-      if opt in ('-h', '--help'):
-         usage()
-         sys.exit(0)
-      elif opt in ('-v', '--version'):
-         version()
-         sys.exit(0)
-      elif opt in ('--log'):
-         if arg.lower() == 'debug':
-             logLevel = logging.DEBUG
-         elif arg.lower() == 'info':
-             logLevel = logging.INFO
-         elif arg.lower() == 'warn':
-             logLevel = logging.WARN
-      elif opt in ('--all'):
-         compatibleOnly = False
-      elif opt in ('-d', '--device'):
-         device = arg
-      elif opt in ('-t', '--timeout'):
-         timeout = float(arg)
-      elif opt in ('--ssdp-version'):
-         ssdp_version = int(arg)
-      elif opt in ('-i', '--ip'):
-         ip = arg
-         compatibleOnly = False
-         timeout = 10
-      elif opt in ('--list'):
-         action = 'list'
-      elif opt in ('--play'):
-         action = 'play'
-         url = arg
-      elif opt in ('--pause'):
-         action = 'pause'
-      elif opt in ('--stop'):
-         action = 'stop'
-      elif opt in ('--volume'):
-         action = 'volume'
-         vol = arg
-      elif opt in ('--seek'):
-         action = 'seek'
-         position = arg
-      elif opt in ('--mute'):
-         action = 'mute'
-      elif opt in ('--unmute'):
-         action = 'unmute'
-      elif opt in ('--info'):
-         action = 'info'
-      elif opt in ('--media-info'):
-         action = 'media-info'
-      elif opt in ('--proxy'):
-         proxy = True
-      elif opt in ('--proxy-port'):
-         proxy_port = int(arg)
+
+   if args.version:
+      print(__version__)
+      sys.exit(0)
+
+   if args.verbosity == 'debug':
+      logLevel = logging.DEBUG
+   elif args.verbosity == 'info':
+      logLevel = logging.INFO
+   else:
+      logLevel = logging.WARN
+
+   timeout = args.timeout
+   if args.all:
+      compatibleOnly = False
+   elif args.ip:
+      compatibleOnly = False
+      timeout = 10
+      if args.action == "play":
+         assert args.url, "Please specify the URL to the media you want to play with '--url'"
 
    logging.basicConfig(level=logLevel)
 
    st = URN_AVTransport_Fmt if compatibleOnly else SSDP_ALL
-   allDevices = discover(name=device, ip=ip, timeout=timeout, st=st, ssdp_version=ssdp_version)
+   allDevices = discover(name=args.device, ip=args.ip, timeout=timeout, st=st, ssdp_version=args.ssdp_version)
    if not allDevices:
       print('No compatible devices found.')
       sys.exit(1)
 
-   if action in ('', 'list'):
+   if args.action == 'list':
       print('Discovered devices:')
       for d in allDevices:
          print(' {} {}'.format('[a]' if d.has_av_transport else '[x]', d))
@@ -798,48 +726,48 @@ if __name__ == '__main__':
    d = allDevices[0]
    print(d)
 
-   if url.lower().replace('https://', '').replace('www.', '').startswith('youtube.'):
+   if args.url.lower().replace('https://', '').replace('www.', '').startswith('youtube.'):
       import subprocess
       process = subprocess.Popen(['youtube-dl', '-g', url], stdout = subprocess.PIPE)
-      url, err = process.communicate()
+      args.url, err = process.communicate()
 
-   if url.lower().startswith('https://'):
-      proxy = True
+   if args.url.lower().startswith('https://'):
+      args.proxy = True
 
-   if proxy:
-      ip = _get_serve_ip(d.ip)
-      t = threading.Thread(target=runProxy, kwargs={'ip' : ip, 'port' : proxy_port})
+   if args.proxy:
+      args.ip = _get_serve_ip(d.ip)
+      t = threading.Thread(target=runProxy, kwargs={'ip' : args.ip, 'port' : args.proxy_port})
       t.daemon = True
       t.start()
       time.sleep(2)
 
-   if action == 'play':
+   if args.action == 'play':
       try:
          d.stop()
-         url = 'http://{}:{}/{}'.format(ip, proxy_port, url) if proxy else url
-         d.set_current_media(url=url)
+         args.url = 'http://{}:{}/{}'.format(args.ip, args.proxy_port, args.url) if args.proxy else args.url
+         d.set_current_media(url=args.url)
          d.play()
       except Exception as e:
          print('Device is unable to play media.')
          logging.warn('Play exception:\n{}'.format(traceback.format_exc()))
          sys.exit(1)
-   elif action == 'pause':
+   elif args.action == 'pause':
       d.pause()
-   elif action == 'stop':
+   elif args.action == 'stop':
       d.stop()
-   elif action == 'volume':
+   elif args.action == 'volume':
       d.volume(vol)
-   elif action == 'seek':
+   elif args.action == 'seek':
       d.seek(position)
-   elif action == 'mute':
+   elif args.action == 'mute':
       d.mute()
-   elif action == 'unmute':
+   elif args.action == 'unmute':
       d.unmute()
-   elif action == 'info':
+   elif args.action == 'info':
       print(d.info())
-   elif action == 'media-info':
+   elif args.action == 'media-info':
       print(d.media_info())
 
-   if proxy:
+   if args.proxy:
       while running:
          time.sleep(30)
