@@ -278,7 +278,7 @@ class DownloadProxy(BaseHTTPRequestHandler):
          self.send_response(200)
          self.send_header('Access-Control-Allow-Origin', '*')
          self.send_header("Content-Type", content_type)
-         self.send_header("Content-Disposition", 'attachment; filename="{}"'.format(os.path.basename(url)))
+         self.send_header(f"Content-Disposition", 'attachment; filename="{os.path.basename(url)}"')
          self.send_header("Content-Length", str(size))
          self.end_headers()
          shutil.copyfileobj(f, self.wfile)
@@ -314,7 +314,7 @@ def _get_control_url(xml, urn):
    xml -- device description xml
    return -- control url or empty string if wasn't found
    """
-   return _xpath(xml, 'root/device/serviceList/service@serviceType={}/controlURL'.format(urn))
+   return _xpath(xml, f'root/device/serviceList/service@serviceType={urn}/controlURL')
 
 @contextmanager
 def _send_udp(to, packet):
@@ -397,7 +397,7 @@ class DlnapDevice:
 
    def __init__(self, raw, ip):
       self.__logger = logging.getLogger(self.__class__.__name__)
-      self.__logger.info('=> New DlnapDevice (ip = {}) initialization..'.format(ip))
+      self.__logger.info(f'=> New DlnapDevice (ip = {ip}) initialization..')
 
       self.ip = ip
       self.ssdp_version = 1
@@ -411,32 +411,32 @@ class DlnapDevice:
       try:
          self.__raw = raw.decode()
          self.location = _get_location_url(self.__raw)
-         self.__logger.info('location: {}'.format(self.location))
+         self.__logger.info(f'location: {self.location}')
 
          self.port = _get_port(self.location)
-         self.__logger.info('port: {}'.format(self.port))
+         self.__logger.info(f'port: {self.port}')
 
          raw_desc_xml = urlopen(self.location).read().decode()
 
          self.__desc_xml = _xml2dict(raw_desc_xml)
-         self.__logger.debug('description xml: {}'.format(self.__desc_xml))
+         self.__logger.debug(f'description xml: {self.__desc_xml}')
 
          self.name = _get_friendly_name(self.__desc_xml)
-         self.__logger.info('friendlyName: {}'.format(self.name))
+         self.__logger.info(f'friendlyName: {self.name}')
 
          self.control_url = _get_control_url(self.__desc_xml, URN_AVTransport)
-         self.__logger.info('control_url: {}'.format(self.control_url))
+         self.__logger.info(f'control_url: {self.control_url}')
 
          self.rendering_control_url = _get_control_url(self.__desc_xml, URN_RenderingControl)
-         self.__logger.info('rendering_control_url: {}'.format(self.rendering_control_url))
+         self.__logger.info(f'rendering_control_url: {self.rendering_control_url}')
 
          self.has_av_transport = self.control_url is not None
-         self.__logger.info('=> Initialization completed'.format(ip))
+         self.__logger.info('=> Initialization completed')
       except Exception as e:
-         self.__logger.warning('DlnapDevice (ip = {}) init exception:\n{}'.format(ip, traceback.format_exc()))
+         self.__logger.warning(f'DlnapDevice (ip = {ip}) init exception:\n{traceback.format_exc()}')
 
    def __repr__(self):
-      return '{} @ {}'.format(self.name, self.ip)
+      return f'{self.name} @ {self.ip}'
 
    def __eq__(self, d):
       return self.name == d.name and self.ip == d.ip
@@ -446,16 +446,16 @@ class DlnapDevice:
       """
       fields = ''
       for tag, value in data.items():
-        fields += '<{tag}>{value}</{tag}>'.format(tag=tag, value=value)
+        fields += f'<{tag}>{value}</{tag}>'
 
-      payload = """<?xml version="1.0" encoding="utf-8"?>
+      payload = f"""<?xml version="1.0" encoding="utf-8"?>
          <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
             <s:Body>
                <u:{action} xmlns:u="{urn}">
                   {fields}
                </u:{action}>
             </s:Body>
-         </s:Envelope>""".format(action=action, urn=urn, fields=fields)
+         </s:Envelope>"""
       return payload
 
    def _create_packet(self, action, data):
@@ -473,13 +473,13 @@ class DlnapDevice:
       payload = self._payload_from_template(action=action, data=data, urn=urn)
 
       packet = "\r\n".join([
-         'POST {} HTTP/1.1'.format(url),
-         'User-Agent: {}/{}'.format(__file__, __version__),
+         f'POST {url} HTTP/1.1',
+         f'User-Agent: {__file__}/{__version__}',
          'Accept: */*',
          'Content-Type: text/xml; charset="utf-8"',
-         'HOST: {}:{}'.format(self.ip, self.port),
-         'Content-Length: {}'.format(len(payload)),
-         'SOAPACTION: "{}#{}"'.format(urn, action),
+         f'HOST: {self.ip}:{self.port}',
+         f'Content-Length: {len(payload)}',
+         f'SOAPACTION: "{urn}#{action}"',
          'Connection: close',
          '',
          payload,
@@ -608,12 +608,12 @@ def discover(name = '', ip = '', timeout = 1, st = SSDP_ALL, mx = 3, ssdp_versio
    st = st.format(ssdp_version)
    payload = "\r\n".join([
               'M-SEARCH * HTTP/1.1',
-              'User-Agent: {}/{}'.format(__file__, __version__),
+              f'User-Agent: {__file__}/{__version__}'.format(__file__, __version__),
               'HOST: {}:{}'.format(*SSDP_GROUP),
               'Accept: */*',
               'MAN: "ssdp:discover"',
-              'ST: {}'.format(st),
-              'MX: {}'.format(mx),
+              f'ST: {st}',
+              f'MX: {mx}',
               '',
               ''])
    devices = []
@@ -720,7 +720,7 @@ if __name__ == '__main__':
    if args.action == 'list':
       print('Discovered devices:')
       for d in allDevices:
-         print(' {} {}'.format('[a]' if d.has_av_transport else '[x]', d))
+         print(' {} {d}'.format('[a]' if d.has_av_transport else '[x]'))
       sys.exit(0)
 
    d = allDevices[0]
@@ -744,12 +744,12 @@ if __name__ == '__main__':
    if args.action == 'play':
       try:
          d.stop()
-         args.url = 'http://{}:{}/{}'.format(args.ip, args.proxy_port, args.url) if args.proxy else args.url
+         args.url = f'http://{args.ip}:{args.proxy_port}/{args.url}' if args.proxy else args.url
          d.set_current_media(url=args.url)
          d.play()
       except Exception as e:
          print('Device is unable to play media.')
-         logging.warn('Play exception:\n{}'.format(traceback.format_exc()))
+         logging.warn(f'Play exception:\n{traceback.format_exc()}')
          sys.exit(1)
    elif args.action == 'pause':
       d.pause()
