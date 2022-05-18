@@ -400,53 +400,44 @@ class DlnapDevice:
       self.__logger.debug(packet)
       return packet
 
+   def send_command(self, command, args):
+      return _send_tcp((self.ip, self.port), self._create_packet(command, args))
+
    def set_current_media(self, url, instance_id=0):
-      packet = self._create_packet('SetAVTransportURI', {'InstanceID':instance_id, 'CurrentURI':url, 'CurrentURIMetaData':'' })
-      _send_tcp((self.ip, self.port), packet)
+      return self.send_command('SetAVTransportURI', {'InstanceID':instance_id, 'CurrentURI':url, 'CurrentURIMetaData':''})
 
    def play(self, instance_id=0):
-      packet = self._create_packet('Play', {'InstanceID': instance_id, 'Speed': 1})
-      _send_tcp((self.ip, self.port), packet)
+      return self.send_command('Play', {'InstanceID': instance_id, 'Speed': 1})
 
    def pause(self, instance_id=0):
-      packet = self._create_packet('Pause', {'InstanceID': instance_id, 'Speed':1})
-      _send_tcp((self.ip, self.port), packet)
+      return self.send_command('Pause', {'InstanceID': instance_id, 'Speed':1})
 
    def stop(self, instance_id=0):
-      packet = self._create_packet('Stop', {'InstanceID': instance_id, 'Speed': 1})
-      _send_tcp((self.ip, self.port), packet)
+      return self.send_command('Stop', {'InstanceID': instance_id, 'Speed': 1})
 
-   def seek(self, position, instance_id = 0):
-      packet = self._create_packet('Seek', {'InstanceID':instance_id, 'Unit':'REL_TIME', 'Target': position })
-      _send_tcp((self.ip, self.port), packet)
+   def seek(self, position, instance_id=0):
+      return self.send_command('Seek', {'InstanceID':instance_id, 'Unit':'REL_TIME', 'Target': position })
 
-   def volume(self, volume=10, instance_id = 0):
-      packet = self._create_packet('SetVolume', {'InstanceID': instance_id, 'DesiredVolume': volume, 'Channel': 'Master'})
-      _send_tcp((self.ip, self.port), packet)
+   def volume(self, volume=10, instance_id=0):
+      return self.send_command('SetVolume', {'InstanceID': instance_id, 'DesiredVolume': volume, 'Channel': 'Master'})
 
    def get_volume(self, instance_id=0):
-      packet = self._create_packet('GetVolume', {'InstanceID':instance_id, 'Channel': 'Master'})
-      _send_tcp((self.ip, self.port), packet)
+      return self.send_command('GetVolume', {'InstanceID':instance_id, 'Channel': 'Master'})
 
    def mute(self, instance_id=0):
-      packet = self._create_packet('SetMute', {'InstanceID': instance_id, 'DesiredMute': '1', 'Channel': 'Master'})
-      _send_tcp((self.ip, self.port), packet)
+      return self.send_command('SetMute', {'InstanceID': instance_id, 'DesiredMute': '1', 'Channel': 'Master'})
 
    def unmute(self, instance_id=0):
-      packet = self._create_packet('SetMute', {'InstanceID': instance_id, 'DesiredMute': '0', 'Channel': 'Master'})
-      _send_tcp((self.ip, self.port), packet)
+      return self.send_command('SetMute', {'InstanceID': instance_id, 'DesiredMute': '0', 'Channel': 'Master'})
 
    def info(self, instance_id=0):
-      packet = self._create_packet('GetTransportInfo', {'InstanceID': instance_id})
-      return _send_tcp((self.ip, self.port), packet)
+      return self.send_command('GetTransportInfo', {'InstanceID': instance_id})
 
    def media_info(self, instance_id=0):
-      packet = self._create_packet('GetMediaInfo', {'InstanceID': instance_id})
-      return _send_tcp((self.ip, self.port), packet)
+      return self.send_command('GetMediaInfo', {'InstanceID': instance_id})
 
    def position_info(self, instance_id=0):
-      packet = self._create_packet('GetPositionInfo', {'InstanceID': instance_id})
-      return _send_tcp((self.ip, self.port), packet)
+      return self.send_command('GetPositionInfo', {'InstanceID': instance_id})
 
    def set_next(self, url):
       pass
