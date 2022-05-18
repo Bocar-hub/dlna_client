@@ -55,7 +55,7 @@ URN_RenderingControl_Fmt = "urn:schemas-upnp-org:service:RenderingControl:{}"
 
 SSDP_ALL = "ssdp:all"
 
-def _get_xml_tag_value(x, i = 0):
+def _get_xml_tag_value(x, i=0):
    x = x.strip()
    value = ''
    tag = ''
@@ -95,8 +95,8 @@ def _get_xml_tag_value(x, i = 0):
       i += 1
 
    i += 1 # >
-   
-   # replace self-closing <tag/> by <tag>None</tag> 
+
+   # replace self-closing <tag/> by <tag>None</tag>
    empty_elmt = '<' + tag + ' />'
    closed_elmt = '<' + tag + '>None</'+tag+'>'
    if x.startswith(empty_elmt):
@@ -112,7 +112,7 @@ def _get_xml_tag_value(x, i = 0):
       i += 1
    return (tag.strip(), value[:-1], x[i+1:])
 
-def _xml2dict(s, ignoreUntilXML = False):
+def _xml2dict(s, ignoreUntilXML=False):
    if ignoreUntilXML:
       s = ''.join(re.findall(".*?(<.*)", s, re.M))
 
@@ -225,7 +225,7 @@ class DownloadProxy(BaseHTTPRequestHandler):
          running = False
          f.close()
 
-def runProxy(ip = '', port = 8000):
+def runProxy(ip = '', port=8000):
    global running
    running = True
    DownloadProxy.protocol_version = "HTTP/1.0"
@@ -300,7 +300,7 @@ def _get_friendly_name(xml):
 
 def _get_serve_ip(target_ip, target_port=80):
     """ Find ip address of network interface used to communicate with target
-    
+
     target-ip -- ip address of target
     return -- ip address of interface connected to target
     """
@@ -400,44 +400,39 @@ class DlnapDevice:
       self.__logger.debug(packet)
       return packet
 
-   def set_current_media(self, url, instance_id = 0):
+   def set_current_media(self, url, instance_id=0):
       packet = self._create_packet('SetAVTransportURI', {'InstanceID':instance_id, 'CurrentURI':url, 'CurrentURIMetaData':'' })
       _send_tcp((self.ip, self.port), packet)
 
-   def play(self, instance_id = 0):
+   def play(self, instance_id=0):
       packet = self._create_packet('Play', {'InstanceID': instance_id, 'Speed': 1})
       _send_tcp((self.ip, self.port), packet)
 
-   def pause(self, instance_id = 0):
+   def pause(self, instance_id=0):
       packet = self._create_packet('Pause', {'InstanceID': instance_id, 'Speed':1})
       _send_tcp((self.ip, self.port), packet)
 
-   def stop(self, instance_id = 0):
+   def stop(self, instance_id=0):
       packet = self._create_packet('Stop', {'InstanceID': instance_id, 'Speed': 1})
       _send_tcp((self.ip, self.port), packet)
-
 
    def seek(self, position, instance_id = 0):
       packet = self._create_packet('Seek', {'InstanceID':instance_id, 'Unit':'REL_TIME', 'Target': position })
       _send_tcp((self.ip, self.port), packet)
 
-
    def volume(self, volume=10, instance_id = 0):
       packet = self._create_packet('SetVolume', {'InstanceID': instance_id, 'DesiredVolume': volume, 'Channel': 'Master'})
-
       _send_tcp((self.ip, self.port), packet)
-      
-      
-   def get_volume(self, instance_id = 0):
+
+   def get_volume(self, instance_id=0):
       packet = self._create_packet('GetVolume', {'InstanceID':instance_id, 'Channel': 'Master'})
       _send_tcp((self.ip, self.port), packet)
 
-
-   def mute(self, instance_id = 0):
+   def mute(self, instance_id=0):
       packet = self._create_packet('SetMute', {'InstanceID': instance_id, 'DesiredMute': '1', 'Channel': 'Master'})
       _send_tcp((self.ip, self.port), packet)
 
-   def unmute(self, instance_id = 0):
+   def unmute(self, instance_id=0):
       packet = self._create_packet('SetMute', {'InstanceID': instance_id, 'DesiredMute': '0', 'Channel': 'Master'})
       _send_tcp((self.ip, self.port), packet)
 
@@ -449,11 +444,9 @@ class DlnapDevice:
       packet = self._create_packet('GetMediaInfo', {'InstanceID': instance_id})
       return _send_tcp((self.ip, self.port), packet)
 
-
    def position_info(self, instance_id=0):
       packet = self._create_packet('GetPositionInfo', {'InstanceID': instance_id})
       return _send_tcp((self.ip, self.port), packet)
-
 
    def set_next(self, url):
       pass
@@ -461,8 +454,7 @@ class DlnapDevice:
    def next(self):
       pass
 
-
-def discover(name = '', ip = '', timeout = 1, st = SSDP_ALL, mx = 3, ssdp_version = 1):
+def discover(name='', ip='', timeout=1, st=SSDP_ALL, mx=3, ssdp_version=1):
    """ Discover UPnP devices in the local network.
 
    name -- name or part of the name to filter devices
