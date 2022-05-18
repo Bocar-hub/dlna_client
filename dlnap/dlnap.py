@@ -217,7 +217,10 @@ def _xpath(d, path):
       else:
          d = d[tag][0]
    return d
-#
+
+class HttpException(Exception):
+   pass
+
 # XML to DICT
 # =================================================================================================
 # PROXY
@@ -347,6 +350,8 @@ def _send_tcp(to, payload):
 
       data = sock.recv(2048)
       data = data.decode('utf-8')
+      if not data.startswith("HTTP/1.1 200 OK"):
+         raise HttpException(f"Oops, there was a problem... server response is:\n{data}")
       data = _xml2dict(_unescape_xml(data), True)
 
       errorDescription = _xpath(data, 's:Envelope/s:Body/s:Fault/detail/UPnPError/errorDescription')
@@ -743,7 +748,11 @@ if __name__ == '__main__':
 
    if args.action == 'play':
       try:
-         d.stop()
+         try:
+            d.stop()
+         except HttpException:
+            # It might fail when there were no media being played - just ignore this specific case
+            pass
          args.url = f'http://{args.ip}:{args.proxy_port}/{args.url}' if args.proxy else args.url
          d.set_current_media(url=args.url)
          d.play()
