@@ -38,7 +38,6 @@ import traceback
 import mimetypes
 from contextlib import contextmanager
 
-
 import os
 from urllib.request import urlopen
 from http.server import HTTPServer
@@ -56,21 +55,7 @@ URN_RenderingControl_Fmt = "urn:schemas-upnp-org:service:RenderingControl:{}"
 
 SSDP_ALL = "ssdp:all"
 
-# =================================================================================================
-# XML to DICT
-#
-def _get_tag_value(x, i = 0):
-   """ Get the nearest to 'i' position xml tag name.
-
-   x -- xml string
-   i -- position to start searching tag from
-   return -- (tag, value) pair.
-      e.g
-         <d>
-            <e>value4</e>
-         </d>
-      result is ('d', '<e>value4</e>')
-   """
+def _get_xml_tag_value(x, i = 0):
    x = x.strip()
    value = ''
    tag = ''
@@ -128,42 +113,14 @@ def _get_tag_value(x, i = 0):
    return (tag.strip(), value[:-1], x[i+1:])
 
 def _xml2dict(s, ignoreUntilXML = False):
-
-   """ Convert xml to dictionary.
-
-   <?xml version="1.0"?>
-   <a any_tag="tag value">
-      <b> <bb>value1</bb> </b>
-      <b> <bb>value2</bb> </b>
-      </c>
-      <d>
-         <e>value4</e>
-      </d>
-      <g>value</g>
-   </a>
-
-   =>
-
-   { 'a':
-     {
-         'b': [ {'bb':value1}, {'bb':value2} ],
-         'c': [],
-         'd':
-         {
-           'e': [value4]
-         },
-         'g': [value]
-     }
-   }
-   """
    if ignoreUntilXML:
       s = ''.join(re.findall(".*?(<.*)", s, re.M))
 
    d = {}
    while s:
-      tag, value, s = _get_tag_value(s)
+      tag, value, s = _get_xml_tag_value(s)
       value = value.strip()
-      isXml, dummy, dummy2 = _get_tag_value(value)
+      isXml, dummy, dummy2 = _get_xml_tag_value(value)
       if tag not in d:
          d[tag] = []
       if not isXml:
@@ -175,23 +132,6 @@ def _xml2dict(s, ignoreUntilXML = False):
             d[tag] = []
          d[tag].append(_xml2dict(value))
    return d
-
-s = """
-   hello
-   this is a bad
-   strings
-
-   <?xml version="1.0"?>
-   <a any_tag="tag value">
-      <b><bb>value1</bb></b>
-      <b><bb>value2</bb> <v>value3</v></b>
-      </c>
-      <d>
-         <e>value4</e>
-      </d>
-      <g>value</g>
-   </a>
-"""
 
 def _xpath(d, path):
    """ Return value from xml dictionary at path.
@@ -221,10 +161,6 @@ def _xpath(d, path):
 class HttpException(Exception):
    pass
 
-# XML to DICT
-# =================================================================================================
-# PROXY
-#
 running = False
 class DownloadProxy(BaseHTTPRequestHandler):
 
@@ -297,26 +233,13 @@ def runProxy(ip = '', port = 8000):
    while running:
       httpd.handle_request()
 
-#
-# PROXY
-# =================================================================================================
-
-def _get_port(location):
-   """ Extract port number from url.
-
-   location -- string like http://anyurl:port/whatever/path
-   return -- port number
-   """
-   port = re.findall('http://.*?:(\d+).*', location)
+def _get_port(url):
+   port = re.findall('http://.*?:(\d+).*', url)
    return int(port[0]) if port else 80
 
 
 def _get_control_url(xml, urn):
-   """ Extract AVTransport contol url from device description xml
-
-   xml -- device description xml
-   return -- control url or empty string if wasn't found
-   """
+   "Extract AVTransport contol url from device description xml"
    return _xpath(xml, f'root/device/serviceList/service@serviceType={urn}/controlURL')
 
 @contextmanager
@@ -332,8 +255,7 @@ def _send_udp(to, packet):
    sock.close()
 
 def _unescape_xml(xml):
-   """ Replace escaped xml symbols with real ones.
-   """
+   "Replace escaped xml symbols with real ones."
    return xml.replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"')
 
 def _send_tcp(to, payload):
@@ -365,22 +287,14 @@ def _send_tcp(to, payload):
 
 
 def _get_location_url(raw):
-    """ Extract device description url from discovery response
-
-    raw -- raw discovery response
-    return -- location url string
-    """
+    "Extract device description url from discovery response"
     t = re.findall('\n(?i)location:\s*(.*)\r\s*', raw, re.M)
     if len(t) > 0:
         return t[0]
     return ''
 
 def _get_friendly_name(xml):
-   """ Extract device name from description xml
-
-   xml -- device description xml
-   return -- device name
-   """
+   "Extract device name from description xml"
    name = _xpath(xml, 'root/device/friendlyName')
    return name if name is not None else 'Unknown'
 
@@ -447,8 +361,6 @@ class DlnapDevice:
       return self.name == d.name and self.ip == d.ip
 
    def _payload_from_template(self, action, data, urn):
-      """ Assembly payload from template.
-      """
       fields = ''
       for tag, value in data.items():
         fields += f'<{tag}>{value}</{tag}>'
@@ -464,11 +376,6 @@ class DlnapDevice:
       return payload
 
    def _create_packet(self, action, data):
-      """ Create packet to send to device control url.
-
-      action -- control action
-      data -- dictionary with XML fields value
-      """
       if action in ["SetVolume", "SetMute", "GetVolume"]:
           url = self.rendering_control_url
           urn = URN_RenderingControl_Fmt.format(self.ssdp_version)
@@ -494,102 +401,56 @@ class DlnapDevice:
       return packet
 
    def set_current_media(self, url, instance_id = 0):
-      """ Set media to playback.
-
-      url -- media url
-      instance_id -- device instance id
-      """
       packet = self._create_packet('SetAVTransportURI', {'InstanceID':instance_id, 'CurrentURI':url, 'CurrentURIMetaData':'' })
       _send_tcp((self.ip, self.port), packet)
 
    def play(self, instance_id = 0):
-      """ Play media that was already set as current.
-
-      instance_id -- device instance id
-      """
       packet = self._create_packet('Play', {'InstanceID': instance_id, 'Speed': 1})
       _send_tcp((self.ip, self.port), packet)
 
    def pause(self, instance_id = 0):
-      """ Pause media that is currently playing back.
-
-      instance_id -- device instance id
-      """
       packet = self._create_packet('Pause', {'InstanceID': instance_id, 'Speed':1})
       _send_tcp((self.ip, self.port), packet)
 
    def stop(self, instance_id = 0):
-      """ Stop media that is currently playing back.
-
-      instance_id -- device instance id
-      """
       packet = self._create_packet('Stop', {'InstanceID': instance_id, 'Speed': 1})
       _send_tcp((self.ip, self.port), packet)
 
 
    def seek(self, position, instance_id = 0):
-      """
-      Seek position
-      """
       packet = self._create_packet('Seek', {'InstanceID':instance_id, 'Unit':'REL_TIME', 'Target': position })
       _send_tcp((self.ip, self.port), packet)
 
 
    def volume(self, volume=10, instance_id = 0):
-      """ Stop media that is currently playing back.
-
-      instance_id -- device instance id
-      """
       packet = self._create_packet('SetVolume', {'InstanceID': instance_id, 'DesiredVolume': volume, 'Channel': 'Master'})
 
       _send_tcp((self.ip, self.port), packet)
       
       
    def get_volume(self, instance_id = 0):
-      """
-      get volume
-      """
       packet = self._create_packet('GetVolume', {'InstanceID':instance_id, 'Channel': 'Master'})
       _send_tcp((self.ip, self.port), packet)
 
 
    def mute(self, instance_id = 0):
-      """ Stop media that is currently playing back.
-
-      instance_id -- device instance id
-      """
       packet = self._create_packet('SetMute', {'InstanceID': instance_id, 'DesiredMute': '1', 'Channel': 'Master'})
       _send_tcp((self.ip, self.port), packet)
 
    def unmute(self, instance_id = 0):
-      """ Stop media that is currently playing back.
-
-      instance_id -- device instance id
-      """
       packet = self._create_packet('SetMute', {'InstanceID': instance_id, 'DesiredMute': '0', 'Channel': 'Master'})
       _send_tcp((self.ip, self.port), packet)
 
    def info(self, instance_id=0):
-      """ Transport info.
-
-      instance_id -- device instance id
-      """
       packet = self._create_packet('GetTransportInfo', {'InstanceID': instance_id})
       return _send_tcp((self.ip, self.port), packet)
 
    def media_info(self, instance_id=0):
-      """ Media info.
-
-      instance_id -- device instance id
-      """
       packet = self._create_packet('GetMediaInfo', {'InstanceID': instance_id})
       return _send_tcp((self.ip, self.port), packet)
 
 
    def position_info(self, instance_id=0):
-      """ Position info.
-      instance_id -- device instance id
-      """
       packet = self._create_packet('GetPositionInfo', {'InstanceID': instance_id})
       return _send_tcp((self.ip, self.port), packet)
 
@@ -652,9 +513,6 @@ def discover(name = '', ip = '', timeout = 1, st = SSDP_ALL, mx = 3, ssdp_versio
              pass
    return devices
 
-#
-# Signal of Ctrl+C
-# =================================================================================================
 def signal_handler(signal, frame):
    print(' Got Ctrl + C, exit now!')
    sys.exit(1)
