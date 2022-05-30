@@ -248,7 +248,6 @@ def _get_port(url):
    port = re.findall('http://.*?:(\d+).*', url)
    return int(port[0]) if port else 80
 
-
 def _get_control_url(xml, urn):
    "Extract AVTransport contol url from device description xml"
    return _xpath(xml, f'root/device/serviceList/service@serviceType={urn}/controlURL')
