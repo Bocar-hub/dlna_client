@@ -36,6 +36,7 @@ import select
 import logging
 import traceback
 import mimetypes
+import errno
 from contextlib import contextmanager
 
 import os
@@ -224,6 +225,16 @@ class DownloadProxy(BaseHTTPRequestHandler):
          running = False # If everything went well (not exception, stop the server)
       finally:
          f.close()
+
+   def handle(self):
+      try:
+         super().handle()
+      except socket.error as e:
+          if e.errno != errno.ECONNRESET:
+             raise # Not error we are looking for
+          # Else, keep serving the resource: the client will likely retry.
+          # so don't raise anything
+          print("exception ECONNRESET hidden")
 
 def runProxy(ip = '', port=8000):
    global running
