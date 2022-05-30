@@ -221,8 +221,8 @@ class DownloadProxy(BaseHTTPRequestHandler):
          self.send_header("Content-Length", str(size))
          self.end_headers()
          shutil.copyfileobj(f, self.wfile)
+         running = False # If everything went well (not exception, stop the server)
       finally:
-         running = False
          f.close()
 
 def runProxy(ip = '', port=8000):
@@ -585,7 +585,7 @@ if __name__ == '__main__':
       t = threading.Thread(target=runProxy, kwargs={'ip' : args.ip, 'port' : args.proxy_port})
       t.daemon = True
       t.start()
-      time.sleep(2)
+      time.sleep(1)
 
    if args.action == 'play':
       try:
@@ -619,5 +619,5 @@ if __name__ == '__main__':
       print(d.media_info())
 
    if args.proxy:
-      while running:
-         time.sleep(30)
+      # Before returning, it's important to wait for the end of the thread
+      t.join(30) # 30s timeout
